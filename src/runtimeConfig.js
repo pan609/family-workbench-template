@@ -152,7 +152,7 @@ function resolveRoute() {
     if (setup) return setup;
   }
 
-  if (window.location.pathname === '/launch' || (window.location.pathname === '/' && isStandaloneLaunch())) {
+  if (['/launch', '/launch/'].includes(window.location.pathname) || (window.location.pathname === '/' && isStandaloneLaunch())) {
     const recent = readWorkspaceRegistry()[0];
     const workbench = savedWorkbenchRoute(recent?.workspaceId);
     if (workbench) return workbench;

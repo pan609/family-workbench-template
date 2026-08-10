@@ -1,2 +1,2 @@
-/launch /index.html 200
+/launch/* /index.html 200
 /workbench/* /index.html 200

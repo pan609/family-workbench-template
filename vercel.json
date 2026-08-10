@@ -4,7 +4,7 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    { "source": "/launch", "destination": "/index.html" },
+    { "source": "/launch/:path*", "destination": "/index.html" },
     { "source": "/workbench/:path*", "destination": "/index.html" }
   ],
   "headers": [
