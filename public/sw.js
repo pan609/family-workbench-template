@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-workbench-v4';
+const CACHE_NAME = 'family-workbench-v5';
 const APP_SHELL = [
   './',
   './index.html',
