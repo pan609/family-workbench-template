@@ -1,0 +1,24 @@
+{
+  "name": "family-workbench",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "deploy": "npm run build && wrangler deploy",
+    "preview": "vite preview",
+    "check": "node scripts/static-check.mjs",
+    "check:install": "node scripts/install-readiness.mjs"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "vite": "^7.1.1",
+    "wrangler": "4.120.0"
+  }
+}

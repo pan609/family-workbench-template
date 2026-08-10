@@ -1,0 +1,20 @@
+{
+  "name": "我的家庭工作台",
+  "tagline": "把今天要做的事放在一个地方",
+  "tone": "warm",
+  "mode": "personal",
+  "personalDelivery": "own-cloud",
+  "cloudProvider": "vercel",
+  "modules": [
+    "schedule",
+    "tasks",
+    "shopping",
+    "meals",
+    "notes"
+  ],
+  "sampleItems": {
+    "tasks": [],
+    "shopping": [],
+    "meals": []
+  }
+}
