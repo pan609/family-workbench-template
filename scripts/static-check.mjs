@@ -17,7 +17,7 @@ if (!css.includes('prefers-reduced-motion')) throw new Error('missing reduced-mo
 if (!app.includes('indexedDB.open')) throw new Error('personal mode must use IndexedDB');
 if (!app.includes('#setup=')) throw new Error('personal shell must accept generated phone setup links');
 if (!app.includes('state:${config.workspaceId}')) throw new Error('personal records must be isolated by workspace UUID');
-if (manifest.start_url !== '/') throw new Error('installed app must start at the workspace chooser');
+if (manifest.start_url !== '/launch') throw new Error('installed app must reopen the most recent local workspace');
 if (manifest.display !== 'standalone') throw new Error('manifest must be standalone');
 if (!manifest.icons.some((icon) => icon.sizes === '192x192')) throw new Error('missing 192px install icon');
 if (!manifest.icons.some((icon) => icon.sizes === '512x512')) throw new Error('missing 512px install icon');

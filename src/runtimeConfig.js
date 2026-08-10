@@ -19,6 +19,14 @@ function list(value, maximum = 20) {
   return value.slice(0, maximum).map((item) => text(item, '', 120)).filter(Boolean);
 }
 
+export function newWorkspaceId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
+    const random = Math.floor(Math.random() * 16);
+    return (token === 'x' ? random : (random & 0x3) | 0x8).toString(16);
+  });
+}
+
 export function normalizeConfig(raw, expectedWorkspaceId = '') {
   if (!raw || typeof raw !== 'object') throw new Error('工作台配置无效');
   const workspaceId = text(raw.workspaceId, '', 36).toLowerCase();
@@ -102,6 +110,34 @@ function readSavedConfig(workspaceId) {
   }
 }
 
+function savedWorkbenchRoute(workspaceId) {
+  if (!UUID_PATTERN.test(workspaceId || '')) return null;
+  const config = readSavedConfig(workspaceId);
+  if (!config) return null;
+  rememberWorkspace(config);
+  history.replaceState(null, '', `/workbench/${config.workspaceId}`);
+  return { kind: 'workbench', config };
+}
+
+function setupRoute(expectedWorkspaceId = '') {
+  const setupMatch = window.location.hash.match(/^#setup=([A-Za-z0-9_-]+)$/);
+  if (!setupMatch) return null;
+  try {
+    const decoded = decodeSetup(setupMatch[1]);
+    const workspaceId = expectedWorkspaceId || decoded.workspaceId || newWorkspaceId();
+    const config = normalizeConfig({ ...decoded, workspaceId }, expectedWorkspaceId || workspaceId);
+    saveWorkspaceConfig(config);
+    history.replaceState(null, '', `/workbench/${config.workspaceId}${window.location.search}`);
+    return { kind: 'workbench', config };
+  } catch (error) {
+    return { kind: 'unavailable', workspaceId: expectedWorkspaceId, reason: error.message };
+  }
+}
+
+function isStandaloneLaunch() {
+  return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+}
+
 function resolveRoute() {
   if (bundledConfig.mode === 'family') {
     try {
@@ -111,22 +147,25 @@ function resolveRoute() {
     }
   }
 
+  if (window.location.pathname === '/') {
+    const setup = setupRoute();
+    if (setup) return setup;
+  }
+
+  if (window.location.pathname === '/launch' || (window.location.pathname === '/' && isStandaloneLaunch())) {
+    const recent = readWorkspaceRegistry()[0];
+    const workbench = savedWorkbenchRoute(recent?.workspaceId);
+    if (workbench) return workbench;
+    return { kind: 'landing' };
+  }
+
   const pathMatch = window.location.pathname.match(/^\/workbench\/([0-9a-f-]{36})\/?$/i);
   if (!pathMatch) return { kind: 'landing' };
   const workspaceId = pathMatch[1].toLowerCase();
   if (!UUID_PATTERN.test(workspaceId)) return { kind: 'unavailable', reason: '链接中的工作台标识无效' };
 
-  const setupMatch = window.location.hash.match(/^#setup=([A-Za-z0-9_-]+)$/);
-  if (setupMatch) {
-    try {
-      const config = normalizeConfig(decodeSetup(setupMatch[1]), workspaceId);
-      saveWorkspaceConfig(config);
-      history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-      return { kind: 'workbench', config };
-    } catch (error) {
-      return { kind: 'unavailable', workspaceId, reason: error.message };
-    }
-  }
+  const pathSetup = setupRoute(workspaceId);
+  if (pathSetup) return pathSetup;
 
   const config = readSavedConfig(workspaceId);
   if (!config) return { kind: 'unavailable', workspaceId, reason: '这台设备还没有保存此工作台的配置' };

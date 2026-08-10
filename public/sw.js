@@ -1,6 +1,7 @@
-const CACHE_NAME = 'family-workbench-v6.2';
+const CACHE_NAME = 'family-workbench-v6.4';
 const APP_SHELL = [
   '/',
+  '/launch',
   '/index.html',
   '/manifest.webmanifest',
   '/icons/workbench.svg',

@@ -3,18 +3,11 @@ import { backupEnvelope, initialData, normalizeImport } from '../data.js';
 import { idbGet, idbPut } from '../storage.js';
 import {
   normalizeConfig,
+  newWorkspaceId,
   readLegacyConfig,
   readWorkspaceRegistry,
   saveWorkspaceConfig,
 } from '../runtimeConfig.js';
-
-function newWorkspaceId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    return (token === 'x' ? random : (random & 0x3) | 0x8).toString(16);
-  });
-}
 
 export function LandingPage() {
   const [workspaces] = useState(readWorkspaceRegistry);
@@ -85,7 +78,7 @@ export function LandingPage() {
           <ol className="steps-grid">
             <li><span>01</span><strong>告诉 AI 你的需求</strong><p>例如：“帮我做一个温馨风格的个人工作台，要待办、采购和便签。”</p></li>
             <li><span>02</span><strong>Skill 生成专属链接</strong><p>链接形如 /workbench/你的 UUID。首次打开会把配置安全地留在本机。</p></li>
-            <li><span>03</span><strong>添加到手机主屏幕</strong><p>之后像普通 App 一样打开；入口页会列出这台手机已保存的工作台。</p></li>
+            <li><span>03</span><strong>添加到手机主屏幕</strong><p>之后像普通 App 一样打开，并默认回到最近使用的专属工作台。</p></li>
           </ol>
         </section>
 
