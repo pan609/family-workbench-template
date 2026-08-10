@@ -24,7 +24,7 @@ const navItems = [
 function App({ config }) {
   const metaKey = `family-workbench:meta:v1:${config.workspaceId}`;
   const { data, setData, loading, storageError, syncStatus } = useWorkbenchData(config);
-  const installCapability = useInstallCapability();
+  const installCapability = useInstallCapability(config, data);
   const { status: storageStatus, requestPersistence } = useStorageSafety();
   const [view, setView] = useState('today');
   const [selectedDate, setSelectedDate] = useState(localISO(new Date()));
@@ -241,6 +241,7 @@ function App({ config }) {
     <div className="app" data-tone={config.tone}>
       <header className="topbar">
         <div className="brand"><span className="brand-mark" aria-hidden="true">⌇</span><div><strong>{config.name}</strong><small>{config.tagline}</small></div></div>
+        {!installCapability.installed && !installCapability.isLocalAddress && installCapability.isSecure && <a className="install-shortcut" href={installCapability.url}>安装到手机</a>}
         <nav className="desktop-nav" aria-label="主要导航">{nav()}</nav>
       </header>
 

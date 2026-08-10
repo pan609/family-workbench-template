@@ -65,6 +65,36 @@ function decodeSetup(value) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
+function encodeSetup(value) {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+export function createInstallUrl(rawConfig, data) {
+  const config = normalizeConfig(rawConfig, rawConfig?.workspaceId || '');
+  const payload = data === undefined ? { config } : { config, data };
+  const url = new URL(`/install/${config.workspaceId}`, window.location.origin);
+  url.hash = `install=${encodeSetup(payload)}`;
+  return url.href;
+}
+
+export function createSetupUrl(rawConfig) {
+  const config = normalizeConfig(rawConfig, rawConfig?.workspaceId || '');
+  const url = new URL(`/workbench/${config.workspaceId}`, window.location.origin);
+  url.hash = `setup=${encodeSetup(config)}`;
+  return url.href;
+}
+
+function installPayload(expectedWorkspaceId) {
+  const installMatch = window.location.hash.match(/^#install=([A-Za-z0-9_-]+)$/);
+  if (!installMatch) throw new Error('安装链接缺少工作台交接信息');
+  const payload = decodeSetup(installMatch[1]);
+  const config = normalizeConfig(payload?.config, expectedWorkspaceId);
+  return { config, data: payload?.data };
+}
+
 export function readWorkspaceRegistry() {
   try {
     const saved = JSON.parse(localStorage.getItem(WORKSPACE_REGISTRY_KEY));
@@ -152,11 +182,27 @@ function resolveRoute() {
     if (setup) return setup;
   }
 
+  const installMatch = window.location.pathname.match(/^\/install\/([0-9a-f-]{36})\/?$/i);
+  if (installMatch) {
+    const workspaceId = installMatch[1].toLowerCase();
+    if (!UUID_PATTERN.test(workspaceId)) return { kind: 'unavailable', reason: '安装链接中的工作台标识无效' };
+    try {
+      const payload = installPayload(workspaceId);
+      if (isStandaloneLaunch()) {
+        saveWorkspaceConfig(payload.config);
+        return { kind: 'install-bootstrap', ...payload };
+      }
+      return { kind: 'install', ...payload };
+    } catch (error) {
+      return { kind: 'unavailable', workspaceId, reason: error.message };
+    }
+  }
+
   if (['/launch', '/launch/'].includes(window.location.pathname) || (window.location.pathname === '/' && isStandaloneLaunch())) {
     const recent = readWorkspaceRegistry()[0];
     const workbench = savedWorkbenchRoute(recent?.workspaceId);
     if (workbench) return workbench;
-    return { kind: 'landing' };
+    return isStandaloneLaunch() ? { kind: 'install-repair' } : { kind: 'landing' };
   }
 
   const pathMatch = window.location.pathname.match(/^\/workbench\/([0-9a-f-]{36})\/?$/i);

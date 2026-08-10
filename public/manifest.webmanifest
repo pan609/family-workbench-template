@@ -2,8 +2,6 @@
   "name": "我的家庭工作台",
   "short_name": "家庭工作台",
   "description": "一个手机优先、本地保存的家庭工作台",
-  "id": "/",
-  "start_url": "/launch/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f7f4ed",

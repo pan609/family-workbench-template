@@ -43,7 +43,7 @@ export function LandingPage() {
     <div className="landing-shell">
       <header className="landing-header">
         <a className="landing-brand" href="/" aria-label="家庭工作台首页"><span aria-hidden="true">⌇</span><strong>家庭工作台</strong></a>
-        <span className="version-pill">公开入口 · v0.7</span>
+        <span className="version-pill">公开入口 · v0.8</span>
       </header>
       <main className="landing-main">
         <section className="landing-hero">
@@ -78,7 +78,7 @@ export function LandingPage() {
           <ol className="steps-grid">
             <li><span>01</span><strong>告诉 AI 你的需求</strong><p>例如：“帮我做一个温馨风格的个人工作台，要待办、采购和便签。”</p></li>
             <li><span>02</span><strong>Skill 生成专属链接</strong><p>链接形如 /workbench/你的 UUID。首次打开会把配置安全地留在本机。</p></li>
-            <li><span>03</span><strong>添加到手机主屏幕</strong><p>之后像普通 App 一样打开，并默认回到最近使用的专属工作台。</p></li>
+            <li><span>03</span><strong>从安装专用页添加</strong><p>安装页会把当前工作台安全交给主屏幕空间，之后从图标直接进入自己的工作台。</p></li>
           </ol>
         </section>
 

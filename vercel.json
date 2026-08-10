@@ -5,6 +5,7 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/launch/:path*", "destination": "/index.html" },
+    { "source": "/install/:path*", "destination": "/index.html" },
     { "source": "/workbench/:path*", "destination": "/index.html" }
   ],
   "headers": [

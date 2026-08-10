@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-workbench-v6.5';
+const CACHE_NAME = 'family-workbench-v8.0';
 const APP_SHELL = [
   '/',
   '/launch/',

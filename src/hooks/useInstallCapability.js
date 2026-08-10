@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createInstallUrl } from '../runtimeConfig.js';
 
 function platformName() {
   const agent = navigator.userAgent || '';
@@ -7,7 +8,7 @@ function platformName() {
   return 'desktop';
 }
 
-export function useInstallCapability() {
+export function useInstallCapability(config, data) {
   const [promptEvent, setPromptEvent] = useState(null);
   const [installed, setInstalled] = useState(
     () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
@@ -46,7 +47,8 @@ export function useInstallCapability() {
     canPrompt: Boolean(promptEvent),
     isLocalAddress,
     isSecure: window.isSecureContext,
-    url: window.location.href,
+    url: createInstallUrl(config, data),
+    freshUrl: createInstallUrl(config),
     install,
-  }), [installed, promptEvent, isLocalAddress, install]);
+  }), [installed, promptEvent, isLocalAddress, install, config, data]);
 }

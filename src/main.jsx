@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import { InstallBootstrap, InstallRepair, InstallWorkspace } from './components/InstallWorkspace.jsx';
 import { LandingPage } from './components/LandingPage.jsx';
 import { WorkspaceUnavailable } from './components/WorkspaceUnavailable.jsx';
 import { runtimeRoute } from './runtimeConfig.js';
@@ -10,13 +11,25 @@ const content = runtimeRoute.kind === 'workbench'
   ? <App config={runtimeRoute.config} />
   : runtimeRoute.kind === 'landing'
     ? <LandingPage />
-    : <WorkspaceUnavailable reason={runtimeRoute.reason} />;
+    : runtimeRoute.kind === 'install'
+      ? <InstallWorkspace config={runtimeRoute.config} />
+      : runtimeRoute.kind === 'install-bootstrap'
+        ? <InstallBootstrap config={runtimeRoute.config} data={runtimeRoute.data} />
+        : runtimeRoute.kind === 'install-repair'
+          ? <InstallRepair />
+          : <WorkspaceUnavailable reason={runtimeRoute.reason} />;
 
 document.title = runtimeRoute.kind === 'workbench'
   ? runtimeRoute.config.name
   : runtimeRoute.kind === 'landing'
     ? '家庭工作台 Skill｜创建你的手机工作台'
-    : '无法打开工作台｜家庭工作台';
+    : runtimeRoute.kind === 'install'
+      ? `安装${runtimeRoute.config.name}`
+      : runtimeRoute.kind === 'install-bootstrap'
+        ? '正在安装家庭工作台'
+        : runtimeRoute.kind === 'install-repair'
+          ? '修复主屏幕图标｜家庭工作台'
+          : '无法打开工作台｜家庭工作台';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
