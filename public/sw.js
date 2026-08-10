@@ -1,13 +1,13 @@
-const CACHE_NAME = 'family-workbench-v6';
+const CACHE_NAME = 'family-workbench-v6.1';
 const APP_SHELL = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './icons/workbench.svg',
-  './icons/apple-touch-icon.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/maskable-512.png',
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/icons/workbench.svg',
+  '/icons/apple-touch-icon.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/maskable-512.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -27,7 +27,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(() => caches.match('./index.html')));
+    event.respondWith(fetch(event.request).catch(async () => (
+      (await caches.match('/index.html')) || (await caches.match('/'))
+    )));
     return;
   }
   event.respondWith(
