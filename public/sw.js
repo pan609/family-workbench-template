@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-workbench-v6.1';
+const CACHE_NAME = 'family-workbench-v6.2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -27,9 +27,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || new URL(event.request.url).origin !== self.location.origin) return;
   if (event.request.mode === 'navigate') {
-    event.respondWith(fetch(event.request).catch(async () => (
-      (await caches.match('/index.html')) || (await caches.match('/'))
-    )));
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, response.clone());
+        }
+        return response;
+      } catch {
+        return (await caches.match(event.request))
+          || (await caches.match('/index.html'))
+          || (await caches.match('/'))
+          || new Response('家庭工作台暂时离线，请恢复网络后重试。', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+      }
+    })());
     return;
   }
   event.respondWith(
