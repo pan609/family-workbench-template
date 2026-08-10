@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Checklist } from './components/Checklist.jsx';
 import { FamilyShare } from './components/FamilyShare.jsx';
 import { Icon } from './components/Icons.jsx';
@@ -23,7 +23,7 @@ const navItems = [
 
 function App({ config }) {
   const metaKey = `family-workbench:meta:v1:${config.workspaceId}`;
-  const { data, setData, loading, storageError, syncStatus } = useWorkbenchData(config);
+  const { data, setData, loading, storageError, syncStatus, saveStatus } = useWorkbenchData(config);
   const installCapability = useInstallCapability(config, data);
   const { status: storageStatus, requestPersistence } = useStorageSafety();
   const [view, setView] = useState('today');
@@ -117,6 +117,27 @@ function App({ config }) {
     updateList('tasks', (items) => [...items, { id: id('task'), text: clean, time, date: targetDate, done: false, updatedAt: timestamp }]);
     setSelectedDate(targetDate);
     setWeekAnchor(targetDate);
+    setToast('已加入待办');
+  }
+
+  function addToSection(key, rawText, targetDate = selectedDate) {
+    const text = rawText.trim();
+    if (!text) return;
+    const timestamp = now();
+
+    if (key === 'shopping') {
+      updateList('shopping', (items) => [...items, { id: id('shopping'), text, done: false, updatedAt: timestamp }]);
+      setToast('已加入采购清单');
+      return;
+    }
+    if (key === 'meals') {
+      updateList('meals', (items) => [...items, { id: id('meal'), text, date: targetDate, done: false, updatedAt: timestamp }]);
+      setToast('已加入餐单');
+      return;
+    }
+    const time = text.match(/(?:[01]\d|2[0-3]):[0-5]\d/)?.[0] || '';
+    const clean = text.replace(time, '').trim() || text;
+    updateList('tasks', (items) => [...items, { id: id('task'), text: clean, time, date: targetDate, done: false, updatedAt: timestamp }]);
     setToast('已加入待办');
   }
 
@@ -274,13 +295,16 @@ function App({ config }) {
             meals={selectedMeals}
             note={data.note}
             onAdd={addFromText}
+            onAddToSection={addToSection}
             onToggle={toggle}
             onRemove={remove}
             onNote={(note) => setData((current) => ({ ...current, note }))}
+            saveStatus={saveStatus}
+            mode={config.mode}
           />
         )}
         {view === 'week' && <WeekView days={activeWeekDays} tasks={data.tasks} meals={data.meals} enabled={enabled} onSelect={(date) => { setSelectedDate(date); setWeekAnchor(date); setView('today'); }} />}
-        {view === 'lists' && <ListsView data={data} enabled={enabled} onToggle={toggle} onRemove={remove} />}
+        {view === 'lists' && <ListsView data={data} enabled={enabled} onToggle={toggle} onRemove={remove} onAdd={(key, text) => addToSection(key, text, selectedDate)} />}
         {view === 'settings' && (
           <SettingsView
             onExport={exportData}
@@ -303,7 +327,7 @@ function App({ config }) {
   );
 }
 
-function TodayView({ selectedDate, enabled, tasks, shopping, meals, note, onAdd, onToggle, onRemove, onNote }) {
+function TodayView({ selectedDate, enabled, tasks, shopping, meals, note, onAdd, onAddToSection, onToggle, onRemove, onNote, saveStatus, mode }) {
   const selected = useMemo(() => new Date(`${selectedDate}T12:00:00`), [selectedDate]);
   const dateParts = useMemo(() => ({
     date: new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(selected),
@@ -315,12 +339,12 @@ function TodayView({ selectedDate, enabled, tasks, shopping, meals, note, onAdd,
       <div className="primary-column">
         <div className="page-intro"><p className="date-kicker"><span>{dateParts.date}</span><span>{dateParts.weekday}</span></p><h1>{today ? '今天先做这些' : `${dateParts.weekday}的安排`}</h1></div>
         {(enabled('tasks') || enabled('schedule') || enabled('shopping') || enabled('meals')) && <QuickAdd onAdd={onAdd} />}
-        {(enabled('tasks') || enabled('schedule')) && <Checklist title="待办" items={tasks} emptyText={`${today ? '今天' : dateParts.weekday}还没有待办，先记下一件最重要的事。`} showTime onToggle={(itemId) => onToggle('tasks', itemId)} onRemove={(itemId) => onRemove('tasks', itemId)} />}
+        {(enabled('tasks') || enabled('schedule')) && <Checklist title="待办" items={tasks} emptyText={`${today ? '今天' : dateParts.weekday}还没有待办，先记下一件最重要的事。`} addLabel="待办" addPlaceholder="例如：20:00 收衣服" onAdd={(text) => onAddToSection('tasks', text)} showTime onToggle={(itemId) => onToggle('tasks', itemId)} onRemove={(itemId) => onRemove('tasks', itemId)} />}
       </div>
       <aside className="utility-column">
-        {enabled('shopping') && <Checklist title="采购" items={shopping} emptyText="没有要买的东西。" onToggle={(itemId) => onToggle('shopping', itemId)} onRemove={(itemId) => onRemove('shopping', itemId)} />}
-        {enabled('meals') && <Checklist title="晚餐" items={meals} emptyText={`${today ? '今天' : dateParts.weekday}还没安排晚餐。`} onToggle={(itemId) => onToggle('meals', itemId)} onRemove={(itemId) => onRemove('meals', itemId)} />}
-        {enabled('notes') && <section className="notes-section"><div className="section-heading"><h2>便签</h2><span>自动保存</span></div><label className="sr-only" htmlFor="personal-note">个人家庭便签</label><textarea id="personal-note" value={note} onChange={(event) => onNote(event.target.value.slice(0, 5000))} placeholder="临时记点什么……" /></section>}
+        {enabled('shopping') && <Checklist title="采购" items={shopping} emptyText="没有要买的东西。" addLabel="采购" addPlaceholder="例如：牛奶" onAdd={(text) => onAddToSection('shopping', text)} onToggle={(itemId) => onToggle('shopping', itemId)} onRemove={(itemId) => onRemove('shopping', itemId)} />}
+        {enabled('meals') && <Checklist title="晚餐" items={meals} emptyText={`${today ? '今天' : dateParts.weekday}还没安排晚餐。`} addLabel="晚餐" addPlaceholder="例如：番茄牛腩" onAdd={(text) => onAddToSection('meals', text)} onToggle={(itemId) => onToggle('meals', itemId)} onRemove={(itemId) => onRemove('meals', itemId)} />}
+        {enabled('notes') && <NotesSection note={note} onNote={onNote} saveStatus={saveStatus} mode={mode} />}
       </aside>
     </div>
   );
@@ -342,14 +366,51 @@ function WeekView({ days, tasks, meals, enabled, onSelect }) {
   );
 }
 
-function ListsView({ data, enabled, onToggle, onRemove }) {
+function NotesSection({ note, onNote, saveStatus, mode }) {
+  const [editing, setEditing] = useState(() => !note.trim());
+  const editButtonRef = useRef(null);
+  const labels = {
+    loading: '正在读取…',
+    saving: mode === 'family' ? '正在同步…' : '正在保存…',
+    saved: mode === 'family' ? '已同步' : '已保存到本机',
+    error: '保存失败',
+  };
+  return (
+    <section className="notes-section">
+      <div className="section-heading">
+        <h2>便签</h2>
+        <span className="save-indicator" data-status={saveStatus} role="status" aria-live="polite">{labels[saveStatus] || labels.loading}</span>
+      </div>
+      {editing || !note.trim() ? (
+        <>
+          <label className="sr-only" htmlFor="personal-note">家庭便签</label>
+          <textarea id="personal-note" value={note} onChange={(event) => onNote(event.target.value.slice(0, 5000))} placeholder="临时记点什么……" />
+          <div className="notes-editor-actions">
+            <p className="notes-storage-hint">{mode === 'family' ? '内容会同步到家庭工作台。' : '内容保存在当前设备；清除网站数据会删除。'}</p>
+            <button className="secondary-button" type="button" disabled={!note.trim()} onClick={() => {
+              setEditing(false);
+              window.requestAnimationFrame(() => editButtonRef.current?.focus());
+            }}>保存便签</button>
+          </div>
+        </>
+      ) : (
+        <div className="saved-note-card">
+          <p>{note}</p>
+          <button className="section-add-toggle" type="button" ref={editButtonRef} onClick={() => setEditing(true)}>编辑便签</button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ListsView({ data, enabled, onToggle, onRemove, onAdd }) {
   return (
     <section className="lists-view" aria-labelledby="lists-heading">
       <div className="page-intro"><p className="eyebrow">所有内容</p><h1 id="lists-heading">清单</h1><p>集中整理待办、采购和餐单。</p></div>
       <div className="lists-grid">
-        {(enabled('tasks') || enabled('schedule')) && <Checklist title="全部待办" items={data.tasks} emptyText="还没有待办。" showTime onToggle={(id) => onToggle('tasks', id)} onRemove={(id) => onRemove('tasks', id)} />}
-        {enabled('shopping') && <Checklist title="全部采购" items={data.shopping} emptyText="采购清单是空的。" onToggle={(id) => onToggle('shopping', id)} onRemove={(id) => onRemove('shopping', id)} />}
-        {enabled('meals') && <Checklist title="全部餐单" items={data.meals} emptyText="还没有餐单。" onToggle={(id) => onToggle('meals', id)} onRemove={(id) => onRemove('meals', id)} />}
+        {(enabled('tasks') || enabled('schedule')) && <Checklist title="全部待办" items={data.tasks} emptyText="还没有待办。" addLabel="待办" addPlaceholder="例如：20:00 收衣服" onAdd={(text) => onAdd('tasks', text)} showTime onToggle={(id) => onToggle('tasks', id)} onRemove={(id) => onRemove('tasks', id)} />}
+        {enabled('shopping') && <Checklist title="全部采购" items={data.shopping} emptyText="采购清单是空的。" addLabel="采购" addPlaceholder="例如：牛奶" onAdd={(text) => onAdd('shopping', text)} onToggle={(id) => onToggle('shopping', id)} onRemove={(id) => onRemove('shopping', id)} />}
+        {enabled('meals') && <Checklist title="全部餐单" items={data.meals} emptyText="还没有餐单。" addLabel="晚餐" addPlaceholder="例如：番茄牛腩" onAdd={(text) => onAdd('meals', text)} onToggle={(id) => onToggle('meals', id)} onRemove={(id) => onRemove('meals', id)} />}
       </div>
     </section>
   );

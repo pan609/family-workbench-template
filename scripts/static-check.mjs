@@ -8,7 +8,7 @@ const app = readdirSync(sourceRoot, { recursive: true })
 const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8');
 const manifest = JSON.parse(readFileSync(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'));
 
-const requiredAppText = ['快速记录', '导出数据', '无法导入这个文件', '现有数据没有被修改', '安装到手机', '打开安装专用页', '请停留在这一页添加到主屏幕', '旧版主屏幕图标', '当前是本机预览地址', '超过 7 天', '家庭电脑连接已断开', '关机、休眠', '这里是入口', '我的工作台', 'UUID 不是账号'];
+const requiredAppText = ['快速记录', 'addLabel="待办"', 'addLabel="采购"', 'addLabel="晚餐"', '保存便签', '编辑便签', '已保存到本机', '正在保存…', '导出数据', '无法导入这个文件', '现有数据没有被修改', '安装到手机', '打开安装专用页', '请停留在这一页添加到主屏幕', '旧版主屏幕图标', '当前是本机预览地址', '超过 7 天', '家庭电脑连接已断开', '关机、休眠', '这里是入口', '我的工作台', 'UUID 不是账号'];
 for (const text of requiredAppText) {
   if (!app.includes(text)) throw new Error(`missing required UI text: ${text}`);
 }

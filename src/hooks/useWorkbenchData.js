@@ -41,11 +41,13 @@ export function useWorkbenchData(config) {
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState('');
   const [syncStatus, setSyncStatus] = useState(familyMode ? 'connecting' : 'local');
+  const [saveStatus, setSaveStatus] = useState('loading');
   const dataRef = useRef(data);
   const revisionRef = useRef(0);
   const pendingRef = useRef(null);
   const savingRef = useRef(false);
   const personalWriteRef = useRef(Promise.resolve());
+  const personalWriteVersionRef = useRef(0);
 
   useEffect(() => { dataRef.current = data; }, [data]);
 
@@ -64,6 +66,7 @@ export function useWorkbenchData(config) {
         revisionRef.current = result.revision;
         setSyncStatus('online');
         setStorageError('');
+        if (!pendingRef.current) setSaveStatus('saved');
       } catch (error) {
         if (error.status === 409 && error.payload?.data) {
           const current = normalizeData(error.payload.data);
@@ -72,10 +75,12 @@ export function useWorkbenchData(config) {
           setDataState(current);
           setStorageError('其他家人刚刚修改了工作台。已加载最新内容，请重试刚才的操作。');
           setSyncStatus('online');
+          setSaveStatus('error');
         } else {
           pendingRef.current = next;
           setStorageError('家庭电脑连接已断开。请确认电脑开机、家庭共享已打开，并连接同一个 Wi-Fi。');
           setSyncStatus('offline');
+          setSaveStatus('error');
         }
         break;
       }
@@ -89,13 +94,23 @@ export function useWorkbenchData(config) {
     setDataState(next);
     if (familyMode) {
       pendingRef.current = next;
+      setSaveStatus('saving');
       window.setTimeout(flushFamily, 80);
     } else {
+      const writeVersion = personalWriteVersionRef.current + 1;
+      personalWriteVersionRef.current = writeVersion;
+      setSaveStatus('saving');
       personalWriteRef.current = personalWriteRef.current
         .catch(() => {})
         .then(() => idbPut(stateKey, backupEnvelope(next)))
-        .then(() => setStorageError(''))
-        .catch(() => setStorageError('浏览器没有保存这次修改，请立即导出数据备份。'));
+        .then(() => {
+          setStorageError('');
+          if (writeVersion === personalWriteVersionRef.current) setSaveStatus('saved');
+        })
+        .catch(() => {
+          setStorageError('浏览器没有保存这次修改，请立即导出数据备份。');
+          if (writeVersion === personalWriteVersionRef.current) setSaveStatus('error');
+        });
     }
   }, [familyMode, flushFamily]);
 
@@ -113,7 +128,10 @@ export function useWorkbenchData(config) {
             setSyncStatus('online');
             if (!result.data) {
               pendingRef.current = next;
+              setSaveStatus('saving');
               window.setTimeout(flushFamily, 0);
+            } else {
+              setSaveStatus('saved');
             }
           }
         } else {
@@ -122,6 +140,7 @@ export function useWorkbenchData(config) {
           dataRef.current = next;
           if (active) setDataState(next);
           await idbPut(stateKey, backupEnvelope(next));
+          if (active) setSaveStatus('saved');
         }
       } catch (error) {
         if (active) {
@@ -129,6 +148,7 @@ export function useWorkbenchData(config) {
             ? '无法连接家庭电脑。请确认电脑开机、家庭共享已打开，并连接同一个 Wi-Fi。'
             : '无法读取本机数据。请不要继续录入，并检查浏览器存储权限。');
           setSyncStatus(familyMode ? 'offline' : 'local');
+          setSaveStatus('error');
         }
       } finally {
         if (active) setLoading(false);
@@ -156,13 +176,15 @@ export function useWorkbenchData(config) {
         }
         setSyncStatus('online');
         setStorageError('');
+        setSaveStatus('saved');
       } catch {
         setSyncStatus('offline');
         setStorageError('家庭电脑连接已断开。请确认电脑开机、家庭共享已打开，并连接同一个 Wi-Fi。');
+        setSaveStatus('error');
       }
     }, 2500);
     return () => window.clearInterval(timer);
   }, [familyMode, flushFamily]);
 
-  return { data, setData, loading, storageError, syncStatus };
+  return { data, setData, loading, storageError, syncStatus, saveStatus };
 }
