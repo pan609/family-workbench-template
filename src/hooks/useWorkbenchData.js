@@ -1,67 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { runtimeConfig as config } from '../runtimeConfig.js';
 import { backupEnvelope, initialData, normalizeData, normalizeImport } from '../data.js';
+import { idbGet, idbPut } from '../storage.js';
 
-const DB_NAME = 'family-workbench-v2';
-const STORE_NAME = 'states';
-const STATE_KEY = `state:${config.name}`;
-const LEGACY_KEY = `family-workbench:v1:${config.name}`;
-const TOKEN_KEY = `family-workbench:pairing:${config.name}`;
-
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error('无法打开本机数据库'));
-  });
-}
-
-async function idbGet(key) {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key);
-    request.onsuccess = () => { db.close(); resolve(request.result); };
-    request.onerror = () => { db.close(); reject(request.error); };
-  });
-}
-
-async function idbPut(key, value) {
-  const db = await openDatabase();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).put(value, key);
-    transaction.oncomplete = () => { db.close(); resolve(); };
-    transaction.onerror = () => { db.close(); reject(transaction.error); };
-  });
-}
-
-let cachedToken;
-
-function pairingToken() {
-  if (cachedToken !== undefined) return cachedToken;
+function pairingToken(tokenKey) {
   const match = window.location.hash.match(/^#join=([A-Za-z0-9_-]{24,})$/);
   if (match) {
-    localStorage.setItem(TOKEN_KEY, match[1]);
+    localStorage.setItem(tokenKey, match[1]);
     history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-    cachedToken = match[1];
-    return cachedToken;
+    return match[1];
   }
-  cachedToken = localStorage.getItem(TOKEN_KEY) || '';
-  return cachedToken;
+  return localStorage.getItem(tokenKey) || '';
 }
 
-function familyHeaders() {
-  const token = pairingToken();
+function familyHeaders(tokenKey) {
+  const token = pairingToken(tokenKey);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function familyRequest(path, options = {}) {
+async function familyRequest(path, tokenKey, options = {}) {
   const response = await fetch(path, {
     ...options,
-    headers: { ...familyHeaders(), ...(options.headers || {}) },
+    headers: { ...familyHeaders(tokenKey), ...(options.headers || {}) },
     cache: 'no-store',
   });
   const payload = await response.json().catch(() => ({}));
@@ -74,9 +33,12 @@ async function familyRequest(path, options = {}) {
   return payload;
 }
 
-export function useWorkbenchData() {
+export function useWorkbenchData(config) {
   const familyMode = config.mode === 'family';
-  const [data, setDataState] = useState(initialData);
+  const stateKey = `state:${config.workspaceId}`;
+  const legacyKey = `family-workbench:v1:${config.name}`;
+  const tokenKey = `family-workbench:pairing:${config.workspaceId}`;
+  const [data, setDataState] = useState(() => initialData(config));
   const [loading, setLoading] = useState(true);
   const [storageError, setStorageError] = useState('');
   const [syncStatus, setSyncStatus] = useState(familyMode ? 'connecting' : 'local');
@@ -95,7 +57,7 @@ export function useWorkbenchData() {
       const next = pendingRef.current;
       pendingRef.current = null;
       try {
-        const result = await familyRequest('/api/state', {
+        const result = await familyRequest('/api/state', tokenKey, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ baseRevision: revisionRef.current, data: next }),
@@ -132,7 +94,7 @@ export function useWorkbenchData() {
     } else {
       personalWriteRef.current = personalWriteRef.current
         .catch(() => {})
-        .then(() => idbPut(STATE_KEY, backupEnvelope(next)))
+        .then(() => idbPut(stateKey, backupEnvelope(next)))
         .then(() => setStorageError(''))
         .catch(() => setStorageError('浏览器没有保存这次修改，请立即导出数据备份。'));
     }
@@ -143,9 +105,9 @@ export function useWorkbenchData() {
     async function load() {
       try {
         if (familyMode) {
-          const result = await familyRequest('/api/state');
+          const result = await familyRequest('/api/state', tokenKey);
           revisionRef.current = result.revision;
-          const next = result.data ? normalizeData(result.data) : initialData();
+          const next = result.data ? normalizeData(result.data) : initialData(config);
           dataRef.current = next;
           if (active) {
             setDataState(next);
@@ -156,15 +118,15 @@ export function useWorkbenchData() {
             }
           }
         } else {
-          let saved = await idbGet(STATE_KEY);
+          let saved = await idbGet(stateKey);
           if (!saved) {
-            const legacy = localStorage.getItem(LEGACY_KEY);
+            const legacy = localStorage.getItem(legacyKey);
             if (legacy) saved = JSON.parse(legacy);
           }
-          const next = saved ? normalizeImport(saved) : initialData();
+          const next = saved ? normalizeImport(saved) : initialData(config);
           dataRef.current = next;
           if (active) setDataState(next);
-          await idbPut(STATE_KEY, backupEnvelope(next));
+          await idbPut(stateKey, backupEnvelope(next));
         }
       } catch (error) {
         if (active) {
@@ -190,7 +152,7 @@ export function useWorkbenchData() {
         return;
       }
       try {
-        const result = await familyRequest('/api/state');
+        const result = await familyRequest('/api/state', tokenKey);
         if (result.revision > revisionRef.current && result.data) {
           const next = normalizeData(result.data);
           revisionRef.current = result.revision;

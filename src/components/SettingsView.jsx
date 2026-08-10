@@ -24,6 +24,10 @@ export function SettingsView({ onExport, onImport, onReset, onOpenInstall, stora
           <div><Icon name="phone" /><h2>安装到手机</h2><p>通过 HTTPS 地址或二维码添加到 iPhone、iPad 和 Android 主屏幕。</p></div>
           <button className="primary-button" type="button" onClick={onOpenInstall}>查看安装方法</button>
         </article>}
+        {!familyMode && <article>
+          <div><Icon name="list" /><h2>切换工作台</h2><p>返回公开入口，查看这台手机已经保存的其他工作台。</p></div>
+          <a className="secondary-button" href="/">返回入口</a>
+        </article>}
         {familyMode && <article>
           <div><Icon name="phone" /><h2>家庭电脑{syncStatus === 'online' ? '已连接' : '暂时离线'}</h2><p>电脑关机、休眠或关闭家庭共享后，家人将暂时无法访问；已有数据不会丢失。</p></div>
         </article>}
@@ -55,7 +59,7 @@ export function SettingsView({ onExport, onImport, onReset, onOpenInstall, stora
           <button className="danger-button" type="button" onClick={onReset}>清空数据</button>
         </article>
       </div>
-      <aside className="privacy-note"><strong>{familyMode ? '家庭共享版 v0.5' : '个人版 v0.5'}</strong><span>{familyMode ? '真实记录保存在家庭电脑；手机清理缓存不会删除电脑中的记录。' : '记录保存在当前手机的 IndexedDB；清除网站数据仍可能删除记录，请保留导出的备份。'}</span></aside>
+      <aside className="privacy-note"><strong>{familyMode ? '家庭共享版 v0.6' : '个人版 v0.6'}</strong><span>{familyMode ? '真实记录保存在家庭电脑；手机清理缓存不会删除电脑中的记录。' : '每个 UUID 使用独立的 IndexedDB 记录；清除网站数据仍可能删除记录，请保留导出的备份。'}</span></aside>
     </section>
   );
 }

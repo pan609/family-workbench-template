@@ -1,6 +1,10 @@
 import bundledConfig from './workbench.config.json';
 
-const CONFIG_KEY = 'family-workbench:personal-config:v1';
+export const LEGACY_CONFIG_KEY = 'family-workbench:personal-config:v1';
+export const WORKSPACE_CONFIG_PREFIX = 'family-workbench:workspace-config:v1:';
+export const WORKSPACE_REGISTRY_KEY = 'family-workbench:workspace-registry:v1';
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const MODULES = new Set(['schedule', 'tasks', 'shopping', 'meals', 'notes']);
 const TONES = new Set(['warm', 'calm', 'compact']);
 
@@ -15,8 +19,11 @@ function list(value, maximum = 20) {
   return value.slice(0, maximum).map((item) => text(item, '', 120)).filter(Boolean);
 }
 
-function normalize(raw) {
+export function normalizeConfig(raw, expectedWorkspaceId = '') {
   if (!raw || typeof raw !== 'object') throw new Error('工作台配置无效');
+  const workspaceId = text(raw.workspaceId, '', 36).toLowerCase();
+  if (!UUID_PATTERN.test(workspaceId)) throw new Error('工作台标识无效');
+  if (expectedWorkspaceId && workspaceId !== expectedWorkspaceId.toLowerCase()) throw new Error('链接中的工作台标识不一致');
   const modules = Array.isArray(raw.modules)
     ? [...new Set(raw.modules.filter((item) => MODULES.has(item)))]
     : [];
@@ -28,10 +35,13 @@ function normalize(raw) {
       })).filter((item) => item.text)
     : [];
   return {
+    workspaceId,
     name: text(raw.name, '我的家庭工作台', 40),
     tagline: text(raw.tagline, '把今天要做的事放在一个地方', 80),
     tone: TONES.has(raw.tone) ? raw.tone : 'warm',
-    mode: 'personal',
+    mode: raw.mode === 'family' ? 'family' : 'personal',
+    personalDelivery: raw.personalDelivery === 'own-cloud' ? 'own-cloud' : 'public',
+    cloudProvider: text(raw.cloudProvider, '', 20),
     modules,
     sampleItems: {
       tasks,
@@ -47,26 +57,81 @@ function decodeSetup(value) {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-function resolveConfig() {
-  if (bundledConfig.mode === 'family') return bundledConfig;
-  const match = window.location.hash.match(/^#setup=([A-Za-z0-9_-]+)$/);
-  if (match) {
-    try {
-      const config = normalize(decodeSetup(match[1]));
-      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-      history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
-      return config;
-    } catch (error) {
-      console.warn('无法读取手机工作台链接，将使用默认配置。', error);
-    }
-  }
+export function readWorkspaceRegistry() {
   try {
-    const saved = localStorage.getItem(CONFIG_KEY);
-    if (saved) return normalize(JSON.parse(saved));
-  } catch (error) {
-    console.warn('无法读取已保存的工作台配置。', error);
+    const saved = JSON.parse(localStorage.getItem(WORKSPACE_REGISTRY_KEY));
+    if (!Array.isArray(saved)) return [];
+    return saved.filter((item) => UUID_PATTERN.test(item?.workspaceId || '') && typeof item?.name === 'string');
+  } catch {
+    return [];
   }
-  return normalize(bundledConfig);
 }
 
-export const runtimeConfig = resolveConfig();
+export function rememberWorkspace(config) {
+  const item = {
+    workspaceId: config.workspaceId,
+    name: config.name,
+    tagline: config.tagline,
+    path: `/workbench/${config.workspaceId}`,
+    lastOpenedAt: new Date().toISOString(),
+  };
+  const registry = readWorkspaceRegistry().filter((entry) => entry.workspaceId !== config.workspaceId);
+  localStorage.setItem(WORKSPACE_REGISTRY_KEY, JSON.stringify([item, ...registry].slice(0, 30)));
+}
+
+export function saveWorkspaceConfig(config) {
+  localStorage.setItem(`${WORKSPACE_CONFIG_PREFIX}${config.workspaceId}`, JSON.stringify(config));
+  rememberWorkspace(config);
+}
+
+export function readLegacyConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LEGACY_CONFIG_KEY));
+    return saved && typeof saved === 'object' ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function readSavedConfig(workspaceId) {
+  try {
+    const saved = localStorage.getItem(`${WORKSPACE_CONFIG_PREFIX}${workspaceId}`);
+    return saved ? normalizeConfig(JSON.parse(saved), workspaceId) : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveRoute() {
+  if (bundledConfig.mode === 'family') {
+    try {
+      return { kind: 'workbench', config: normalizeConfig(bundledConfig) };
+    } catch (error) {
+      return { kind: 'unavailable', reason: error.message };
+    }
+  }
+
+  const pathMatch = window.location.pathname.match(/^\/workbench\/([0-9a-f-]{36})\/?$/i);
+  if (!pathMatch) return { kind: 'landing' };
+  const workspaceId = pathMatch[1].toLowerCase();
+  if (!UUID_PATTERN.test(workspaceId)) return { kind: 'unavailable', reason: '链接中的工作台标识无效' };
+
+  const setupMatch = window.location.hash.match(/^#setup=([A-Za-z0-9_-]+)$/);
+  if (setupMatch) {
+    try {
+      const config = normalizeConfig(decodeSetup(setupMatch[1]), workspaceId);
+      saveWorkspaceConfig(config);
+      history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+      return { kind: 'workbench', config };
+    } catch (error) {
+      return { kind: 'unavailable', workspaceId, reason: error.message };
+    }
+  }
+
+  const config = readSavedConfig(workspaceId);
+  if (!config) return { kind: 'unavailable', workspaceId, reason: '这台设备还没有保存此工作台的配置' };
+  rememberWorkspace(config);
+  return { kind: 'workbench', config };
+}
+
+export const runtimeRoute = resolveRoute();

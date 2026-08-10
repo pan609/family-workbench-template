@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { runtimeConfig as config } from './runtimeConfig.js';
 import { Checklist } from './components/Checklist.jsx';
 import { FamilyShare } from './components/FamilyShare.jsx';
 import { Icon } from './components/Icons.jsx';
@@ -13,7 +12,6 @@ import { useStorageSafety } from './hooks/useStorageSafety.js';
 import { useWorkbenchData } from './hooks/useWorkbenchData.js';
 import { emptyData, id, normalizeImport, now, SCHEMA_VERSION } from './data.js';
 
-const META_KEY = `family-workbench:meta:v1:${config.name}`;
 const BACKUP_INTERVAL = 7 * 24 * 60 * 60 * 1000;
 
 const navItems = [
@@ -23,8 +21,9 @@ const navItems = [
   { id: 'settings', label: '设置', icon: 'settings' },
 ];
 
-function App() {
-  const { data, setData, loading, storageError, syncStatus } = useWorkbenchData();
+function App({ config }) {
+  const metaKey = `family-workbench:meta:v1:${config.workspaceId}`;
+  const { data, setData, loading, storageError, syncStatus } = useWorkbenchData(config);
   const installCapability = useInstallCapability();
   const { status: storageStatus, requestPersistence } = useStorageSafety();
   const [view, setView] = useState('today');
@@ -33,7 +32,7 @@ function App() {
   const [modal, setModal] = useState(null);
   const [backupMeta, setBackupMeta] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(META_KEY));
+      const saved = JSON.parse(localStorage.getItem(metaKey));
       return saved && typeof saved === 'object' ? saved : { createdAt: now(), lastExportAt: '', dismissedAt: '' };
     } catch {
       return { createdAt: now(), lastExportAt: '', dismissedAt: '' };
@@ -57,11 +56,11 @@ function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(META_KEY, JSON.stringify(backupMeta));
+      localStorage.setItem(metaKey, JSON.stringify(backupMeta));
     } catch {
       // The existing storage warning covers local write failures.
     }
-  }, [backupMeta]);
+  }, [backupMeta, metaKey]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -132,7 +131,7 @@ function App() {
       app: 'family-workbench',
       schemaVersion: SCHEMA_VERSION,
       exportedAt: now(),
-      config: { name: config.name, tone: config.tone, modules: config.modules },
+      config: { workspaceId: config.workspaceId, name: config.name, tone: config.tone, modules: config.modules },
       data,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });

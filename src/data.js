@@ -1,4 +1,3 @@
-import { runtimeConfig as config } from './runtimeConfig.js';
 import { localISO } from './components/WeekStrip.jsx';
 
 export const SCHEMA_VERSION = 2;
@@ -15,7 +14,7 @@ export function emptyData() {
   return { tasks: [], shopping: [], meals: [], note: '' };
 }
 
-export function initialData() {
+export function initialData(config) {
   const today = localISO(new Date());
   return {
     tasks: (config.sampleItems?.tasks || []).map((item, index) => ({
