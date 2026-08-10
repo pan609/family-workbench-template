@@ -36,7 +36,6 @@ async function familyRequest(path, tokenKey, options = {}) {
 export function useWorkbenchData(config) {
   const familyMode = config.mode === 'family';
   const stateKey = `state:${config.workspaceId}`;
-  const legacyKey = `family-workbench:v1:${config.name}`;
   const tokenKey = `family-workbench:pairing:${config.workspaceId}`;
   const [data, setDataState] = useState(() => initialData(config));
   const [loading, setLoading] = useState(true);
@@ -118,11 +117,7 @@ export function useWorkbenchData(config) {
             }
           }
         } else {
-          let saved = await idbGet(stateKey);
-          if (!saved) {
-            const legacy = localStorage.getItem(legacyKey);
-            if (legacy) saved = JSON.parse(legacy);
-          }
+          const saved = await idbGet(stateKey);
           const next = saved ? normalizeImport(saved) : initialData(config);
           dataRef.current = next;
           if (active) setDataState(next);
