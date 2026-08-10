@@ -127,30 +127,92 @@ button, label { -webkit-tap-highlight-color: transparent; }
 .desktop-nav button:hover { background: var(--sage-pale); }
 .desktop-nav button[aria-current="page"] { color: var(--sage-dark); border-bottom-color: var(--sage); font-weight: 700; }
 
-.week-strip {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+.calendar-bar {
   border-bottom: 1px solid var(--line);
   background: var(--paper-raised);
 }
+.week-navigator {
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  align-items: center;
+  padding: 0 clamp(18px, 4vw, 58px);
+  border-bottom: 1px solid var(--line);
+}
+.week-arrow {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--sage-dark);
+  background: transparent;
+  font-family: Georgia, serif;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+}
+.week-arrow:last-child { justify-self: end; }
+.week-arrow:hover { background: var(--sage-pale); }
+.week-period {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.week-period > strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.week-badge,
+.week-current-button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.week-badge { color: var(--sage-dark); background: var(--sage-pale); }
+.week-current-button { color: var(--terracotta-dark); border: 1px solid var(--line); background: transparent; cursor: pointer; }
+.week-current-button:hover { border-color: var(--terracotta); background: var(--terracotta-pale); }
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
 .day-button {
   position: relative;
-  min-height: 94px;
+  min-width: 0;
+  min-height: 82px;
   display: grid;
   place-content: center;
-  gap: 3px;
+  justify-items: center;
+  gap: 1px;
   border: 0;
-  border-right: 1px solid var(--line);
   background: transparent;
   cursor: pointer;
 }
-.day-button:last-child { border-right: 0; }
-.day-button span { font-size: 14px; }
-.day-button strong { font-size: 18px; font-weight: 600; }
-.day-button small { color: var(--sage); font-weight: 700; }
+.day-button span { color: var(--muted); font-size: 12px; font-weight: 650; }
+.day-button strong {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.day-button small { min-height: 14px; color: var(--sage-dark); font-size: 10px; font-weight: 750; }
 .day-button:hover { background: #f0ece2; }
-.day-button[data-selected] { color: white; background: var(--sage); }
-.day-button[data-selected] small { color: white; }
+.day-button[data-today]:not([data-selected]) strong { box-shadow: inset 0 0 0 1.5px var(--sage); }
+.day-button[data-selected] strong { color: white; background: var(--sage); }
+.day-button[data-selected] span { color: var(--sage-dark); font-weight: 800; }
 
 main { width: min(1440px, 100%); margin: 0 auto; }
 .status-banner { margin: 20px clamp(20px, 4vw, 64px) 0; padding: 12px 16px; border-left: 4px solid var(--terracotta); background: var(--terracotta-pale); }
@@ -162,6 +224,8 @@ main { width: min(1440px, 100%); margin: 0 auto; }
 .page-intro h1 { margin: 2px 0 8px; font-family: Georgia, "Songti SC", serif; font-size: clamp(30px, 3vw, 46px); line-height: 1.16; font-weight: 600; }
 .page-intro p:not(.eyebrow) { margin: 0; color: var(--muted); max-width: 64ch; }
 .eyebrow { margin: 0; color: var(--sage-dark); font-size: 14px; font-weight: 800; letter-spacing: .08em; }
+.date-kicker { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--sage-dark); font-size: 14px; font-weight: 800; letter-spacing: .04em; }
+.date-kicker span + span { padding-left: 8px; border-left: 1px solid var(--line-strong); }
 
 .today-layout {
   display: grid;
@@ -304,11 +368,15 @@ main { width: min(1440px, 100%); margin: 0 auto; }
   .brand-mark { flex: 0 0 auto; font-size: 34px; }
   .brand small, .desktop-nav { display: none; }
   .brand strong { overflow: hidden; font-size: clamp(19px, 5.8vw, 23px); letter-spacing: .02em; text-overflow: ellipsis; white-space: nowrap; }
-  .week-strip { overflow-x: auto; grid-template-columns: repeat(7, minmax(68px, 1fr)); scroll-snap-type: x proximity; }
-  .day-button { min-height: 76px; scroll-snap-align: start; }
-  .day-button span { font-size: 12px; }
-  .day-button strong { font-size: 16px; }
-  .day-button small { font-size: 10px; }
+  .week-navigator { min-height: 50px; grid-template-columns: 44px minmax(0, 1fr) 44px; padding: 0 6px; }
+  .week-period { gap: 7px; }
+  .week-period > strong { font-size: 13px; }
+  .week-badge, .week-current-button { min-height: 26px; padding: 3px 7px; font-size: 11px; }
+  .week-strip { grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; }
+  .day-button { min-height: 68px; padding: 4px 0; }
+  .day-button span { font-size: 11px; }
+  .day-button strong { width: 31px; height: 31px; font-size: 15px; }
+  .day-button small { min-height: 12px; font-size: 9px; }
   .today-layout { display: block; padding: 28px 18px 36px; }
   .backup-reminder { align-items: stretch; flex-direction: column; }
   .family-share { grid-template-columns: 1fr; width: calc(100% - 36px); margin-top: 18px; padding: 18px; }

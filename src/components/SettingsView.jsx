@@ -59,7 +59,7 @@ export function SettingsView({ onExport, onImport, onReset, onOpenInstall, stora
           <button className="danger-button" type="button" onClick={onReset}>清空数据</button>
         </article>
       </div>
-      <aside className="privacy-note"><strong>{familyMode ? '家庭共享版 v0.6' : '个人版 v0.6'}</strong><span>{familyMode ? '真实记录保存在家庭电脑；手机清理缓存不会删除电脑中的记录。' : '每个 UUID 使用独立的 IndexedDB 记录；清除网站数据仍可能删除记录，请保留导出的备份。'}</span></aside>
+      <aside className="privacy-note"><strong>{familyMode ? '家庭共享版 v0.7' : '个人版 v0.7'}</strong><span>{familyMode ? '真实记录保存在家庭电脑；手机清理缓存不会删除电脑中的记录。' : '每个 UUID 使用独立的 IndexedDB 记录；清除网站数据仍可能删除记录，请保留导出的备份。'}</span></aside>
     </section>
   );
 }

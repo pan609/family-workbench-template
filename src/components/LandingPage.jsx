@@ -43,7 +43,7 @@ export function LandingPage() {
     <div className="landing-shell">
       <header className="landing-header">
         <a className="landing-brand" href="/" aria-label="家庭工作台首页"><span aria-hidden="true">⌇</span><strong>家庭工作台</strong></a>
-        <span className="version-pill">公开入口 · v0.6</span>
+        <span className="version-pill">公开入口 · v0.7</span>
       </header>
       <main className="landing-main">
         <section className="landing-hero">

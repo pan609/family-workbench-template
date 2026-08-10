@@ -6,7 +6,7 @@ import { InstallGuide } from './components/InstallGuide.jsx';
 import { Modal } from './components/Modal.jsx';
 import { QuickAdd } from './components/QuickAdd.jsx';
 import { SettingsView } from './components/SettingsView.jsx';
-import { localISO, WeekStrip, weekDays } from './components/WeekStrip.jsx';
+import { isCurrentWeek, localISO, shiftDate, WeekStrip, weekDays, weekRangeLabel } from './components/WeekStrip.jsx';
 import { useInstallCapability } from './hooks/useInstallCapability.js';
 import { useStorageSafety } from './hooks/useStorageSafety.js';
 import { useWorkbenchData } from './hooks/useWorkbenchData.js';
@@ -16,7 +16,7 @@ const BACKUP_INTERVAL = 7 * 24 * 60 * 60 * 1000;
 
 const navItems = [
   { id: 'today', label: '今天', icon: 'today' },
-  { id: 'week', label: '本周', icon: 'week' },
+  { id: 'week', label: '周览', icon: 'week' },
   { id: 'lists', label: '清单', icon: 'list' },
   { id: 'settings', label: '设置', icon: 'settings' },
 ];
@@ -28,6 +28,7 @@ function App({ config }) {
   const { status: storageStatus, requestPersistence } = useStorageSafety();
   const [view, setView] = useState('today');
   const [selectedDate, setSelectedDate] = useState(localISO(new Date()));
+  const [weekAnchor, setWeekAnchor] = useState(localISO(new Date()));
   const [toast, setToast] = useState('');
   const [modal, setModal] = useState(null);
   const [backupMeta, setBackupMeta] = useState(() => {
@@ -40,6 +41,7 @@ function App({ config }) {
   });
 
   const enabled = (module) => config.modules.includes(module);
+  const activeWeekDays = useMemo(() => weekDays(weekAnchor), [weekAnchor]);
   const selectedTasks = data.tasks.filter((item) => item.date === selectedDate);
   const selectedMeals = data.meals.filter((item) => item.date === selectedDate);
   const hasUserData = data.tasks.length + data.shopping.length + data.meals.length > 0 || Boolean(data.note.trim());
@@ -80,7 +82,7 @@ function App({ config }) {
     const match = text.match(/周([一二三四五六日天])/);
     if (!match) return selectedDate;
     const indexes = { 一: 0, 二: 1, 三: 2, 四: 3, 五: 4, 六: 5, 日: 6, 天: 6 };
-    return weekDays()[indexes[match[1]]].iso;
+    return activeWeekDays[indexes[match[1]]].iso;
   }
 
   function addFromText(rawText) {
@@ -114,6 +116,7 @@ function App({ config }) {
     }
     updateList('tasks', (items) => [...items, { id: id('task'), text: clean, time, date: targetDate, done: false, updatedAt: timestamp }]);
     setSelectedDate(targetDate);
+    setWeekAnchor(targetDate);
     setToast('已加入待办');
   }
 
@@ -209,9 +212,26 @@ function App({ config }) {
     );
   }
 
+  function resetToCurrentWeek() {
+    const today = localISO(new Date());
+    setSelectedDate(today);
+    setWeekAnchor(today);
+  }
+
+  function goToToday() {
+    resetToCurrentWeek();
+    setView('today');
+  }
+
+  function moveWeek(amount) {
+    const nextDate = shiftDate(selectedDate, amount * 7);
+    setSelectedDate(nextDate);
+    setWeekAnchor(nextDate);
+  }
+
   function nav() {
     return navItems.map((item) => (
-      <button key={item.id} type="button" onClick={() => setView(item.id)} aria-current={view === item.id ? 'page' : undefined}>
+      <button key={item.id} type="button" onClick={() => item.id === 'today' ? goToToday() : setView(item.id)} aria-current={view === item.id ? 'page' : undefined}>
         <Icon name={item.icon} /><span>{item.label}</span>
       </button>
     ));
@@ -224,7 +244,16 @@ function App({ config }) {
         <nav className="desktop-nav" aria-label="主要导航">{nav()}</nav>
       </header>
 
-      {view !== 'settings' && <WeekStrip selectedDate={selectedDate} onSelect={(date) => { setSelectedDate(date); setView('today'); }} />}
+      {(view === 'today' || view === 'week') && (
+        <WeekStrip
+          selectedDate={selectedDate}
+          days={activeWeekDays}
+          onSelect={(date) => { setSelectedDate(date); setWeekAnchor(date); setView('today'); }}
+          onPrevious={() => moveWeek(-1)}
+          onNext={() => moveWeek(1)}
+          onCurrent={resetToCurrentWeek}
+        />
+      )}
 
       <main id="main-content">
         {config.mode === 'family' && <FamilyShare syncStatus={syncStatus} />}
@@ -249,7 +278,7 @@ function App({ config }) {
             onNote={(note) => setData((current) => ({ ...current, note }))}
           />
         )}
-        {view === 'week' && <WeekView tasks={data.tasks} meals={data.meals} enabled={enabled} onSelect={(date) => { setSelectedDate(date); setView('today'); }} />}
+        {view === 'week' && <WeekView days={activeWeekDays} tasks={data.tasks} meals={data.meals} enabled={enabled} onSelect={(date) => { setSelectedDate(date); setWeekAnchor(date); setView('today'); }} />}
         {view === 'lists' && <ListsView data={data} enabled={enabled} onToggle={toggle} onRemove={remove} />}
         {view === 'settings' && (
           <SettingsView
@@ -274,28 +303,33 @@ function App({ config }) {
 }
 
 function TodayView({ selectedDate, enabled, tasks, shopping, meals, note, onAdd, onToggle, onRemove, onNote }) {
-  const dateLabel = useMemo(() => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date(`${selectedDate}T12:00:00`)), [selectedDate]);
+  const selected = useMemo(() => new Date(`${selectedDate}T12:00:00`), [selectedDate]);
+  const dateParts = useMemo(() => ({
+    date: new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(selected),
+    weekday: new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }).format(selected),
+  }), [selected]);
+  const today = selectedDate === localISO(new Date());
   return (
     <div className="today-layout">
       <div className="primary-column">
-        <div className="page-intro"><p className="eyebrow">{dateLabel}</p><h1>今天先做这些</h1></div>
+        <div className="page-intro"><p className="date-kicker"><span>{dateParts.date}</span><span>{dateParts.weekday}</span></p><h1>{today ? '今天先做这些' : `${dateParts.weekday}的安排`}</h1></div>
         {(enabled('tasks') || enabled('schedule') || enabled('shopping') || enabled('meals')) && <QuickAdd onAdd={onAdd} />}
-        {(enabled('tasks') || enabled('schedule')) && <Checklist title="待办" items={tasks} emptyText="今天还没有待办，先记下一件最重要的事。" showTime onToggle={(itemId) => onToggle('tasks', itemId)} onRemove={(itemId) => onRemove('tasks', itemId)} />}
+        {(enabled('tasks') || enabled('schedule')) && <Checklist title="待办" items={tasks} emptyText={`${today ? '今天' : dateParts.weekday}还没有待办，先记下一件最重要的事。`} showTime onToggle={(itemId) => onToggle('tasks', itemId)} onRemove={(itemId) => onRemove('tasks', itemId)} />}
       </div>
       <aside className="utility-column">
         {enabled('shopping') && <Checklist title="采购" items={shopping} emptyText="没有要买的东西。" onToggle={(itemId) => onToggle('shopping', itemId)} onRemove={(itemId) => onRemove('shopping', itemId)} />}
-        {enabled('meals') && <Checklist title="晚餐" items={meals} emptyText="今天还没安排晚餐。" onToggle={(itemId) => onToggle('meals', itemId)} onRemove={(itemId) => onRemove('meals', itemId)} />}
+        {enabled('meals') && <Checklist title="晚餐" items={meals} emptyText={`${today ? '今天' : dateParts.weekday}还没安排晚餐。`} onToggle={(itemId) => onToggle('meals', itemId)} onRemove={(itemId) => onRemove('meals', itemId)} />}
         {enabled('notes') && <section className="notes-section"><div className="section-heading"><h2>便签</h2><span>自动保存</span></div><label className="sr-only" htmlFor="personal-note">个人家庭便签</label><textarea id="personal-note" value={note} onChange={(event) => onNote(event.target.value.slice(0, 5000))} placeholder="临时记点什么……" /></section>}
       </aside>
     </div>
   );
 }
 
-function WeekView({ tasks, meals, enabled, onSelect }) {
-  const days = weekDays();
+function WeekView({ days, tasks, meals, enabled, onSelect }) {
+  const currentWeek = isCurrentWeek(days[0].iso);
   return (
     <section className="week-view" aria-labelledby="week-heading">
-      <div className="page-intro"><p className="eyebrow">一周总览</p><h1 id="week-heading">本周</h1><p>只看安排和餐单，点一天回到详细清单。</p></div>
+      <div className="page-intro"><p className="eyebrow">一周总览</p><h1 id="week-heading">{currentWeek ? '本周安排' : weekRangeLabel(days)}</h1><p>只看安排和餐单，点一天回到详细清单。</p></div>
       <div className="week-grid">
         {days.map((day) => {
           const dayTasks = tasks.filter((item) => item.date === day.iso);
