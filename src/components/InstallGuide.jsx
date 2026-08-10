@@ -42,7 +42,7 @@ export function InstallGuide({ capability }) {
         </section>
         <section data-current={capability.platform === 'android' || undefined}>
           <h3>Android</h3>
-          <ol><li>使用 Chrome 打开工作台</li><li>点右上角菜单</li><li>选“安装应用”或“添加到主屏幕”</li><li>确认安装</li></ol>
+          <ol><li>使用手机默认浏览器打开工作台</li><li>打开浏览器菜单</li><li>选“添加到主屏幕”或“安装应用”</li><li>确认添加</li></ol>
           {capability.canPrompt && <button className="primary-button" type="button" onClick={capability.install}>立即安装</button>}
         </section>
       </div>
